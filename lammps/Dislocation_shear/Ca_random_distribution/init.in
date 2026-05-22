@@ -1,0 +1,10 @@
+# ---------- Initialize Simulation ---------------------
+clear
+units          metal
+dimension      3
+boundary       p s p
+atom_style     atomic
+atom_modify    map array
+#------------define box --------------------------------
+region box block 0 1 0 1 0 1 units box
+create_box 3 box

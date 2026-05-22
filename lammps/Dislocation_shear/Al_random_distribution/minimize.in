@@ -1,0 +1,47 @@
+#-----------general settings------------------------------------
+variable tsurf     equal 8                              #thickness of upper or lower
+variable T         equal 623                             #relaxation temperature in k
+variable RN 	   equal round(random(0,1e8,82869))      #$(v_RN)
+variable nrelax    equal 500
+variable nevery    equal 1
+variable nrepeat   equal 2000
+variable nfreq     equal 2000
+#only need to change the ustrain sense and the tstrain sense for the shear in opposite direction
+variable ustrain   equal 1e-4                           #strain increment
+variable udisp     equal $(v_ustrain*(ly-2*v_tsurf))    #displacement increment
+variable tstrain   equal e-1                           #total strain or final strain
+variable ndisp     equal 1000                            #displacement times
+variable ndp       equal $(v_ndisp/100)                  #dump interval:displacement times for every dump
+#------------------define groups--------------------------------
+region upper block INF INF $(yhi-v_tsurf) INF INF INF units box side in
+region lower block INF INF INF $(ylo+v_tsurf) INF INF units box side in
+
+group  upper region upper
+group  lower region lower
+group  boundary union upper lower
+group  mobile subtract all boundary
+set group boundary type 3
+set group mobile type/ratio  2   0.03     $(v_RN)
+#------------------define computes-----------------------------
+compute	 Eatom   all     pe/atom
+compute	 Eall    all     reduce sum c_Eatom
+compute  Emid    mobile  reduce sum c_Eatom
+variable sigma   equal   -pxy*0.1               #stress in MPa
+#----------- Set up thermos ------------------------------------
+thermo 100
+thermo_style custom step etotal pe c_Eall c_Emid temp pxx pyy pzz pxy pxz pyz lx ly lz
+thermo_modify flush yes lost warn
+#---------------------fix boundary------------------
+fix fixupper upper setforce 0.0 0.0 0.0
+fix fixlower lower setforce 0.0 0.0 0.0
+#-----------initial minimization--------------------------------
+min_style cg
+min_modify dmax 0.1 line quadratic
+
+minimize 0 1e-3 1000 10000
+write_dump all custom minimized0.lmp mass type xs ys zs c_Eatom
+
+fix 1 all box/relax x 0 z 0 nreset 1 vmax 0.001
+minimize 0 1e-4 10000 100000
+write_dump all custom minimized1.lmp mass type xs ys zs c_Eatom
+unfix 1

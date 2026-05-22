@@ -1,0 +1,4 @@
+pair_style meam 
+pair_coeff * * Al_Ca_Zn_Mg_libray.mean Al Ca Mg Al_Ca_Mg.mean Mg Al Mg 
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes

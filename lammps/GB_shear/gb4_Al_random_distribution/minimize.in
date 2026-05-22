@@ -1,0 +1,55 @@
+write_data model0.lmp
+#-----------general settings------------------------------------
+variable RN 		equal 	round(random(0,1e8,54321))	#generate a random # everytime being invoked
+variable tsurf     equal 8                              #thickness of lefter or righter
+variable tsurf2    equal 50
+variable tsurf3    equal 100
+#only need to change the ustrain sense and the tstrain sense for the shear in opposite direction
+variable n_delta   equal (yhi-ylo)/1e3                  #strain increment
+variable ustrain   equal 1e-3                           #strain increment
+variable tstrain   equal e-1                            #total strain or final strain
+variable ndisp     equal 100                            #displacement times
+variable ndp       equal $(v_ndisp/25)                  #dump interval:displacement times for every dump
+#------------------define groups--------------------------------
+region left block INF $(xlo+v_tsurf) INF INF INF INF units box side in
+region right block $(xhi-v_tsurf) INF INF INF INF INF units box side in
+region mid block $(xlo+v_tsurf2) $(xhi-v_tsurf2) INF INF INF INF units box side in
+region midMC block $(xlo+v_tsurf3) $(xhi-v_tsurf3) INF INF INF INF units box side in
+
+group  left  region left
+group  right region right
+group  mid   region mid
+group  midMC   region midMC
+group  boundary union left right
+group  mobile subtract all boundary
+fix fixleft  left  setforce 0.0 0.0 0.0
+fix fixright right setforce 0.0 0.0 0.0
+
+delete_atoms overlap 1.5 all all
+set group mid type/ratio  2   0.03     $(v_RN)
+write_dump all custom mix0.lmp mass id type xs ys zs
+#------------------define computes-----------------------------
+compute	 Eatom   all     pe/atom
+compute	 Eall    all     reduce sum c_Eatom
+compute  Emid    mobile  reduce sum c_Eatom
+compute  1         mid   voronoi/atom
+compute  vol_sum   mid   reduce sum c_1[1] c_1[2]
+compute  myPress   mid   stress/atom NULL
+compute  Press_sum mid   reduce sum c_myPress[1] c_myPress[2] c_myPress[3] c_myPress[4] c_myPress[5] c_myPress[6]
+variable nmid	   equal "count(mid)"
+variable mid_pxy   equal c_Press_sum[4]/c_vol_sum[1]
+#----------- Set up thermos ------------------------------------
+thermo 100
+thermo_style custom step etotal pe c_Eall c_Emid temp v_mid_pxy pxx pyy pzz pxy pxz pyz lx ly lz
+thermo_modify flush yes lost warn
+
+#-----------initial minimization--------------------------------
+min_style cg
+min_modify dmax 0.1 line quadratic
+
+minimize 0 1e-3 1000 10000
+write_dump all custom minimized0.lmp mass type xs ys zs c_Eatom
+
+fix 1 all box/relax y 0 z 0 nreset 1 vmax 0.001
+minimize 0 1e-4 1000 10000
+unfix 1

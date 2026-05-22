@@ -1,0 +1,50 @@
+change_box all boundary s p p
+displace_atoms all move 0 0 $(-(xlo+xhi)/2) units box
+variable tsurf	equal 10
+delete_atoms overlap 2.5 all all
+#--------------general settings--------------------
+region rgmid block $(xlo+v_tsurf) $(xhi-v_tsurf) INF INF INF INF  side in units box
+region rgcore block $((xhi-xlo)/2-10) $((xhi-xlo)/2+10) INF INF INF INF  side in units box
+group gpmid region rgmid
+group gpcore region rgcore
+set group gpcore type 3
+
+compute	Eatom all pe/atom
+compute	Emid gpmid reduce sum c_Eatom
+variable nmid	equal "count(gpmid)" 
+
+# ---------- Set up thermos --------------------- 
+thermo 100
+thermo_style custom step temp pe c_Emid pxx pyy pzz lx ly lz
+thermo_modify flush yes lost warn
+run 0
+
+#-----------minimiz 10------------------------
+write_dump all custom  minimized0.lmp mass type xs ys zs c_Eatom 
+minimize 0 1e-3 1000 1000
+write_dump all custom  minimized1.lmp mass type xs ys zs c_Eatom 
+
+##-----------anneal core region------------------------
+reset_timestep 0
+timestep 0.001
+velocity gpcore create 300 54321 mom yes rot no
+fix fixnvt gpcore nvt temp 300 0.1 $(100*dt) drag 1
+run 20000
+
+write_dump all custom  minimized2.lmp mass type xs ys zs c_Eatom
+#-----------minimiz 1------------------------
+variable i loop $(4)
+label loop_i
+	minimize 0 1e-2 1000 1000
+	fix fixmini all box/relax  y 0 z 0 nreset 1 vmax 0.01 
+	minimize 1E-10 1e-3 100000 100000
+	unfix fixmini
+	next i
+	jump SELF loop_i 
+label loop_end
+write_dump all custom  minimized3.lmp mass type xs ys zs c_Eatom
+
+variable miu_Mg equal -1.54934285
+variable EGB 	equal $((c_Emid-v_nmid*v_miu_Mg)/(lz*ly*1/100))
+shell echo "%cd%"  $(v_EGB) >> ..\results.txt
+print "All done!" 

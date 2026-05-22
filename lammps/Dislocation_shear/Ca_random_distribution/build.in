@@ -1,0 +1,56 @@
+#create a anisotropic dislocation model using atomsk
+#------------bulk parameter-----------------
+variable a0 		equal 	3.20906498961     
+variable c0 		equal	5.19691053905 
+variable elem 		string 	'Mg'
+variable type   	string  'hcp'
+variable possion 	equal 	0.29 
+variable burgers 	equal 	$(v_a0)
+
+
+#basis vector
+variable u1 equal 1
+variable u2 equal 1
+variable u3 equal -2
+variable u4 equal 0
+                  
+variable v1 equal 0
+variable v2 equal 0
+variable v3 equal 0
+variable v4 equal 1
+                  
+variable w1 equal 1
+variable w2 equal -1
+variable w3 equal 0
+variable w4 equal 0
+
+#------------size parameters------------------------------
+variable topxcell equal 61
+variable botxcell equal 60
+variable ycell    equal 22
+variable zcell    equal 12
+variable topxdef  equal -$(0.5/v_topxcell)
+variable botxdef  equal  $(0.5/v_botxcell)
+
+#------------create dislocation using atomsk-----------------
+shell atomsk --create ${type} ${a0} ${c0} ${elem}				    	&
+orient 				                                           			&
+[${u1}${u2}${u3}${u4}] 				                               		&
+[${v1}${v2}${v3}${v4}]				                               		&
+[${w1}${w2}${w3}${w4}]				                               		&
+-duplicate ${topxcell} ${ycell} ${zcell}        &
+-deform x ${topxdef} 0.0                        &
+-wrap -ow model_top.lmp
+
+shell atomsk --create ${type} ${a0} ${c0} ${elem}				    	&
+orient 				                                           			&
+[${u1}${u2}${u3}${u4}] 				                               		&
+[${v1}${v2}${v3}${v4}]				                               		&
+[${w1}${w2}${w3}${w4}]				                               		&
+-duplicate ${botxcell} ${ycell} ${zcell}        &
+-deform x ${botxdef} 0.0                        &
+-wrap -ow model_bot.lmp
+
+shell atomsk --merge y 2 model_bot.lmp model_top.lmp -ow model0.lmp
+
+read_data model0.lmp add append

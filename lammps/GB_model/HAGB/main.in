@@ -1,0 +1,5 @@
+include init.in
+include build.in
+#include minimize.in
+include anneal.in
+print "All done!" 

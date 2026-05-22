@@ -1,0 +1,81 @@
+#create an anisotropic dislocation model using atomsk
+#------------bulk parameter-----------------
+variable a0 		equal 	3.20906499
+variable c0 		equal	5.19691052
+variable elem 		string 	'Mg'
+variable type   	string  'hcp'
+variable possion 	equal 	0.29 
+variable burgers 	equal 	$(v_c0)
+
+
+#basis vector
+variable u1 equal 1
+variable u2 equal 1
+variable u3 equal -2
+variable u4 equal 0
+                  
+variable v1 equal 0
+variable v2 equal 0
+variable v3 equal 0
+variable v4 equal 1
+                  
+variable w1 equal 1
+variable w2 equal -1
+variable w3 equal 0
+variable w4 equal 0
+
+#basis norm
+variable u equal sqrt(v_a0^2*(v_u1^2+v_u2^2-v_u1*v_u2)+v_c0^2*v_u4^2)
+variable v equal sqrt(v_a0^2*(v_v1^2+v_v2^2-v_v1*v_v2)+v_c0^2*v_v4^2)
+variable w equal sqrt(v_a0^2*(v_w1^2+v_w2^2-v_w1*v_w2)+v_c0^2*v_w4^2)
+
+#box size in A
+variable xcell equal ceil(1/v_u)
+variable ycell equal ceil(1/v_v)
+variable zcell equal ceil(1/v_w)
+
+#box size in basis norm
+variable xbox equal $(v_u*v_xcell)
+variable ybox equal $(v_v*v_ycell)
+variable zbox equal $(v_w*v_zcell)
+
+#location of the dislocation, add a small shift to avoid singularity in atomsk displacement
+variable xdis  equal $(v_xbox*1/2+v_u*0.2/100)
+variable ydis0 equal $(v_ybox*1/2+v_v*0.2/100)
+variable ycell equal $(v_ycell)
+
+#------------create dislocation using atomsk-----------------
+shell atomsk --create ${type} ${a0} ${c0} ${elem}				    	&
+orient 				                                           			&
+[${u1}${u2}${u3}${u4}] 				                               		&
+[${v1}${v2}${v3}${v4}]				                               		&
+[${w1}${w2}${w3}${w4}]				                               		&
+-duplicate ${xcell} ${ycell} ${zcell} 				           			&
+-wrap -ow model0.lmp	
+	
+shell atomsk model0.lmp                                             	&
+-rotate z 28.41 -orthogonal-cell -reduce-cell		&
+-wrap -ow -ig model1.lmp
+
+shell atomsk model1.lmp -duplicate 10 1 1                                &
+-wrap -ow -ig model2.lmp
+
+
+shell atomsk model2.lmp -mirror 0 X  		&			
+-shift BOX BOX*0.200 0							&
+-cell add 0 x                               &
+-wrap -ow model3.lmp							
+
+#------------create bi-crystal-----------------
+shell atomsk --merge X 2 model2.lmp model3.lmp -ow model4.lmp
+
+
+read_data model4.lmp add append
+
+
+
+
+
+
+
+

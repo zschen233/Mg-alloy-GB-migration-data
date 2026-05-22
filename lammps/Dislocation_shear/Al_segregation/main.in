@@ -1,0 +1,6 @@
+include init.in
+include build.in
+include potential.in
+include minimize.in
+include displace.in
+print "All done"

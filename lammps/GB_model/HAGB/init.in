@@ -1,0 +1,20 @@
+# ---------- Initialize Simulation --------------------- 
+clear 
+units metal 
+dimension 3 
+boundary s p p
+atom_style atomic 
+atom_modify map array
+
+#------------define box --------------------------------
+region box block 0 1 0 1 0 1 units box
+create_box 3 box
+
+
+# ---------- Define Interatomic Potential --------------------- 
+pair_style meam
+pair_coeff * * AlCaZnMg_Jang21_libray.meam Al Ca Mg &
+AlCaMg_Jang21.meam Mg Ca Mg
+#pair_coeff * * "/public/home/zschen/project_chen/myscripts/AlCaZnMg_Jang21_libray.mean" Al Ca Mg &
+#"/public/home/zschen/project_chen/myscripts/AlCaMg_Jang21.meam" Mg Al Mg
+newton on
